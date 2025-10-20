@@ -29,14 +29,8 @@ class ScreenLockAccessibilityService : AccessibilityService() {
             if (android.os.Build.VERSION.SDK_INT >= 33) {
                 registerReceiver(lockReceiver, filter, RECEIVER_NOT_EXPORTED)
             } else {
-                // Use reflection to call the 3-argument method on all API levels
-                val method = Context::class.java.getMethod(
-                    "registerReceiver",
-                    BroadcastReceiver::class.java,
-                    IntentFilter::class.java,
-                    Int::class.javaPrimitiveType
-                )
-                method.invoke(this, lockReceiver, filter, 0 /* RECEIVER_NOT_EXPORTED */)
+                // Standard dynamic receiver registration for pre-33
+                registerReceiver(lockReceiver, filter)
             }
         } catch (e: Exception) {
             Log.e("ScreenLockService", "Failed to register receiver", e)

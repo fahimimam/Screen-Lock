@@ -18,9 +18,17 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.screenlock.ui.theme.ScreenLockTheme
 
 class MainActivity : ComponentActivity() {
@@ -41,27 +49,51 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestAccessibilityService(context: Context) {
+        // Open Accessibility Settings in the same task so back returns to this activity
         val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
         context.startActivity(intent)
     }
 
-    private fun sendLockRequest() {
+    private fun sendLockRequestAndFinish() {
         val intent = Intent(ScreenLockAccessibilityService.ACTION_LOCK_SCREEN)
-        intent.setPackage(packageName) // Make the broadcast explicit to this app
+        intent.setPackage(packageName)
         sendBroadcast(intent)
+        // Ensure the app UI doesn't remain after unlocking
+        finishAndRemoveTask()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContent {
             ScreenLockTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                    val lifecycleOwner = LocalLifecycleOwner.current
+                    var isServiceEnabled by remember {
+                        mutableStateOf(
+                            isAccessibilityServiceEnabled(this@MainActivity, ScreenLockAccessibilityService::class.java)
+                        )
+                    }
+
+                    // Update the toggle when we return from settings (or app resumes)
+                    DisposableEffect(lifecycleOwner) {
+                        val observer = LifecycleEventObserver { _, event ->
+                            if (event == Lifecycle.Event.ON_RESUME) {
+                                isServiceEnabled = isAccessibilityServiceEnabled(
+                                    this@MainActivity,
+                                    ScreenLockAccessibilityService::class.java
+                                )
+                            }
+                        }
+                        lifecycleOwner.lifecycle.addObserver(observer)
+                        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+                    }
+
                     MainScreen(
-                        isServiceEnabled = isAccessibilityServiceEnabled(this@MainActivity, ScreenLockAccessibilityService::class.java),
+                        isServiceEnabled = isServiceEnabled,
                         onEnableService = { requestAccessibilityService(this@MainActivity) },
-                        onLockScreen = { sendLockRequest() },
+                        onLockScreen = { sendLockRequestAndFinish() },
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
