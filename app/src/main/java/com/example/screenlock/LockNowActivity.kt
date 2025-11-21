@@ -1,6 +1,7 @@
 package com.example.screenlock
 
 import android.accessibilityservice.AccessibilityService
+import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -27,20 +28,38 @@ class LockNowActivity : ComponentActivity() {
         return false
     }
 
+    private fun isDeviceAdminEnabled(): Boolean {
+        val devicePolicyManager = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        val adminComponent = ComponentName(this, ScreenLockDeviceAdminReceiver::class.java)
+        return devicePolicyManager.isAdminActive(adminComponent)
+    }
+
     private fun lockAndExit() {
-        val intent = Intent(ScreenLockAccessibilityService.ACTION_LOCK_SCREEN)
-        intent.setPackage(packageName)
-        sendBroadcast(intent)
-        finishAndRemoveTask()
+        // Prefer Device Admin method (works on all devices including OnePlus)
+        if (isDeviceAdminEnabled()) {
+            val devicePolicyManager = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            devicePolicyManager.lockNow()
+            finishAndRemoveTask()
+        } else if (isAccessibilityServiceEnabled(this, ScreenLockAccessibilityService::class.java)) {
+            // Fallback to Accessibility Service method
+            val intent = Intent(ScreenLockAccessibilityService.ACTION_LOCK_SCREEN)
+            intent.setPackage(packageName)
+            sendBroadcast(intent)
+            finishAndRemoveTask()
+        } else {
+            // Route to the UI that asks user to enable a method
+            startActivity(Intent(this, MainActivity::class.java))
+            finish()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (isAccessibilityServiceEnabled(this, ScreenLockAccessibilityService::class.java)) {
+        if (isDeviceAdminEnabled() || isAccessibilityServiceEnabled(this, ScreenLockAccessibilityService::class.java)) {
             lockAndExit()
         } else {
-            // Route to the UI that asks user to enable the service
+            // Route to the UI that asks user to enable a method
             startActivity(Intent(this, MainActivity::class.java))
             finish()
         }
