@@ -11,6 +11,8 @@ import android.text.TextUtils
 import androidx.activity.ComponentActivity
 
 class LockNowActivity : ComponentActivity() {
+    private lateinit var devicePolicyManager: DevicePolicyManager
+    private lateinit var adminComponent: ComponentName
 
     private fun isAccessibilityServiceEnabled(context: Context, service: Class<out AccessibilityService>): Boolean {
         val expectedComponentName = ComponentName(context, service)
@@ -29,15 +31,12 @@ class LockNowActivity : ComponentActivity() {
     }
 
     private fun isDeviceAdminEnabled(): Boolean {
-        val devicePolicyManager = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-        val adminComponent = ComponentName(this, ScreenLockDeviceAdminReceiver::class.java)
         return devicePolicyManager.isAdminActive(adminComponent)
     }
 
     private fun lockAndExit() {
         // Prefer Device Admin method (works on all devices including OnePlus)
         if (isDeviceAdminEnabled()) {
-            val devicePolicyManager = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
             devicePolicyManager.lockNow()
             finishAndRemoveTask()
         } else if (isAccessibilityServiceEnabled(this, ScreenLockAccessibilityService::class.java)) {
@@ -55,6 +54,9 @@ class LockNowActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        devicePolicyManager = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        adminComponent = ComponentName(this, ScreenLockDeviceAdminReceiver::class.java)
 
         if (isDeviceAdminEnabled() || isAccessibilityServiceEnabled(this, ScreenLockAccessibilityService::class.java)) {
             lockAndExit()
