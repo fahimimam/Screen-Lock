@@ -3,5 +3,8 @@
     <string name="accessibility_service_description">Screen Lock uses accessibility only to lock
         your screen when you press the button. No data is collected or shared.</string>
     <string name="lock_screen">Lock Screen</string>
+    <string name="device_admin_description">Screen Lock uses Device Admin to lock your screen.
+        This method works reliably on all devices including OnePlus. No data is collected or shared.
+        You can revoke this permission anytime from Settings.</string>
 
 </resources>
