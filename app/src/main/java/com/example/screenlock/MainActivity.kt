@@ -77,19 +77,30 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun sendLockRequestAndFinish() {
-        if (isDeviceAdminEnabled()) {
-            // Use Device Admin method (works on all devices including OnePlus)
-            devicePolicyManager.lockNow()
-            finishAndRemoveTask()
-        } else if (isAccessibilityServiceEnabled(this, ScreenLockAccessibilityService::class.java)) {
-            // Fallback to Accessibility Service method
-            val intent = Intent(ScreenLockAccessibilityService.ACTION_LOCK_SCREEN)
-            intent.setPackage(packageName)
-            sendBroadcast(intent)
-            finishAndRemoveTask()
-        } else {
-            // No method available
-            finishAndRemoveTask()
+        // Try both methods - let user decide which one to enable based on their preference
+        // Accessibility Service: Allows biometric unlock but may not work on OnePlus
+        // Device Admin: Works on OnePlus but requires PIN/Password unlock
+        
+        val accessibilityEnabled = isAccessibilityServiceEnabled(this, ScreenLockAccessibilityService::class.java)
+        val adminEnabled = isDeviceAdminEnabled()
+        
+        when {
+            accessibilityEnabled -> {
+                // Prefer Accessibility Service if enabled (allows biometric unlock)
+                val intent = Intent(ScreenLockAccessibilityService.ACTION_LOCK_SCREEN)
+                intent.setPackage(packageName)
+                sendBroadcast(intent)
+                finishAndRemoveTask()
+            }
+            adminEnabled -> {
+                // Fallback to Device Admin (works on OnePlus but requires PIN/Password)
+                devicePolicyManager.lockNow()
+                finishAndRemoveTask()
+            }
+            else -> {
+                // No method available
+                finishAndRemoveTask()
+            }
         }
     }
 
@@ -163,25 +174,60 @@ fun MainScreen(
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            Text(
-                text = if (isAdminEnabled) {
-                    "✓ Device Admin enabled (Recommended for OnePlus devices)"
-                } else {
-                    "✓ Accessibility Service enabled"
-                },
-                textAlign = TextAlign.Center
-            )
-            
-            if (!isAdminEnabled) {
-                Spacer(modifier = Modifier.height(8.dp))
+            if (isServiceEnabled) {
                 Text(
-                    text = "OnePlus users: Enable Device Admin for better compatibility",
+                    text = "✓ Accessibility Service enabled",
                     textAlign = TextAlign.Center
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(onClick = onEnableAdmin) {
-                    Text("Enable Device Admin")
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "• Allows biometric unlock\n• May not work on OnePlus devices",
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                
+                if (!isAdminEnabled) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "If this doesn't work on your device:",
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = onEnableAdmin) {
+                        Text("Enable Device Admin")
+                    }
                 }
+            } else if (isAdminEnabled) {
+                Text(
+                    text = "✓ Device Admin enabled",
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "• Works on all devices (including OnePlus)\n• Requires PIN/Password to unlock (no biometric)",
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Prefer biometric unlock? Try Accessibility Service:",
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(onClick = onEnableService) {
+                    Text("Enable Accessibility Service")
+                }
+            }
+            
+            if (isServiceEnabled && isAdminEnabled) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Both methods enabled. Accessibility Service will be used (allows biometric unlock).",
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
             }
         } else {
             Text(
@@ -192,19 +238,16 @@ fun MainScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             Text(
-                text = "Method 1 (Recommended for OnePlus):",
+                text = "Method 1: Accessibility Service",
                 textAlign = TextAlign.Center
             )
-            Button(onClick = onEnableAdmin) {
-                Text("Enable Device Admin")
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Method 2 (Alternative):",
-                textAlign = TextAlign.Center
+                text = "✓ Allows biometric unlock\n✗ May not work on OnePlus",
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
+            Spacer(modifier = Modifier.height(8.dp))
             Button(onClick = onEnableService) {
                 Text("Enable Accessibility Service")
             }
@@ -212,7 +255,24 @@ fun MainScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             Text(
-                text = "Note: OnePlus devices work better with Device Admin method.",
+                text = "Method 2: Device Admin",
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "✓ Works on all devices\n✗ Requires PIN/Password unlock",
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(onClick = onEnableAdmin) {
+                Text("Enable Device Admin")
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Text(
+                text = "Tip: Enable Accessibility Service first. If it doesn't work, use Device Admin.",
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )

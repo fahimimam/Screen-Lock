@@ -35,20 +35,31 @@ class LockNowActivity : ComponentActivity() {
     }
 
     private fun lockAndExit() {
-        // Prefer Device Admin method (works on all devices including OnePlus)
-        if (isDeviceAdminEnabled()) {
-            devicePolicyManager.lockNow()
-            finishAndRemoveTask()
-        } else if (isAccessibilityServiceEnabled(this, ScreenLockAccessibilityService::class.java)) {
-            // Fallback to Accessibility Service method
-            val intent = Intent(ScreenLockAccessibilityService.ACTION_LOCK_SCREEN)
-            intent.setPackage(packageName)
-            sendBroadcast(intent)
-            finishAndRemoveTask()
-        } else {
-            // Route to the UI that asks user to enable a method
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
+        // Try both methods - let user decide which one to enable based on their preference
+        // Accessibility Service: Allows biometric unlock but may not work on OnePlus
+        // Device Admin: Works on OnePlus but requires PIN/Password unlock
+        
+        val accessibilityEnabled = isAccessibilityServiceEnabled(this, ScreenLockAccessibilityService::class.java)
+        val adminEnabled = isDeviceAdminEnabled()
+        
+        when {
+            accessibilityEnabled -> {
+                // Prefer Accessibility Service if enabled (allows biometric unlock)
+                val intent = Intent(ScreenLockAccessibilityService.ACTION_LOCK_SCREEN)
+                intent.setPackage(packageName)
+                sendBroadcast(intent)
+                finishAndRemoveTask()
+            }
+            adminEnabled -> {
+                // Fallback to Device Admin (works on OnePlus but requires PIN/Password)
+                devicePolicyManager.lockNow()
+                finishAndRemoveTask()
+            }
+            else -> {
+                // Route to the UI that asks user to enable a method
+                startActivity(Intent(this, MainActivity::class.java))
+                finish()
+            }
         }
     }
 
