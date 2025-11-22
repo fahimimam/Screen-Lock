@@ -29,3 +29,15 @@
     public static *** e(...);
     public static *** wtf(...);
 }
+
+# Aggressive optimization flags for R8
+-optimizationpasses 5
+-allowaccessmodification
+-dontpreverify
+-repackageclasses ''
+
+# Remove attributes not needed in production
+-keepattributes *Annotation*,Signature,Exception
+
+# Optimize method calls
+-optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*

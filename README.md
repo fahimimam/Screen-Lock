@@ -75,6 +75,14 @@ Try enabling the Accessibility Service. If OnePlus allows it, you'll be able to 
 - Android 11 (API 30) or higher
 - No root access required
 
+## App Size
+
+The app has been optimized for minimal size:
+- **Per-architecture APK**: ~8-13 MB (optimized for your device's CPU)
+- **Universal APK**: ~22 MB (includes all architectures)
+
+When downloading from Google Play, you'll automatically get the optimized version for your device. See [SIZE_OPTIMIZATION.md](SIZE_OPTIMIZATION.md) for technical details.
+
 ## Permissions
 
 - **Accessibility Service**: To lock the screen (Method 1 - allows biometric unlock)
