@@ -4,11 +4,11 @@
     <selectionStates>
       <SelectionState runConfigName="app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-10-20T07:56:51.996184Z">
+        <DropdownSelection timestamp="2025-11-22T07:59:39.867946Z">
           <Target type="DEFAULT_BOOT">
-            <template>
-              <DeviceId pluginId="FirebaseDirectAccess" type="TEMPLATE" identifier="model_id=e1q/34" />
-            </template>
+            <handle>
+              <DeviceId pluginId="LocalEmulator" identifier="path=/Users/pathaoltd/.android/avd/Oneplus_8t.avd" />
+            </handle>
           </Target>
         </DropdownSelection>
         <DialogSelection />
