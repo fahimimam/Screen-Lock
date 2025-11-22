@@ -32,6 +32,18 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Enable R8 full mode for better optimization
+            isDebuggable = false
+        }
+    }
+    
+    // Split APKs by ABI to reduce size for each device
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            isUniversalApk = false  // Don't build universal APK with all ABIs
         }
     }
 
@@ -40,8 +52,31 @@ android {
         resources {
             excludes += setOf(
                 "/META-INF/{AL2.0,LGPL2.1,LICENSE*,NOTICE*,DEPENDENCIES}",
-                "/META-INF/*.kotlin_module"
+                "/META-INF/*.kotlin_module",
+                "/kotlin/**",
+                "DebugProbesKt.bin",
+                "/META-INF/*.version"
             )
+        }
+        // Use legacy packaging for dex to optimize size
+        dex {
+            useLegacyPackaging = false
+        }
+    }
+    
+    // Optimize build configuration
+    bundle {
+        language {
+            // Only include English resources in bundles
+            enableSplit = true
+        }
+        density {
+            // Enable density splits for smaller downloads
+            enableSplit = true
+        }
+        abi {
+            // Enable ABI splits for smaller downloads
+            enableSplit = true
         }
     }
 
