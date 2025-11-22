@@ -1,9 +1,11 @@
 package com.example.screenlock
 
 import android.accessibilityservice.AccessibilityService
+import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.text.TextUtils
@@ -54,12 +56,39 @@ class MainActivity : ComponentActivity() {
         context.startActivity(intent)
     }
 
-    private fun sendLockRequestAndFinish() {
-        val intent = Intent(ScreenLockAccessibilityService.ACTION_LOCK_SCREEN)
-        intent.setPackage(packageName)
-        sendBroadcast(intent)
-        // Ensure the app UI doesn't remain after unlocking
-        finishAndRemoveTask()
+    private fun openAppInfo() {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.fromParts("package", packageName, null)
+        }
+        startActivity(intent)
+    }
+
+    private fun devicePolicyManager(): DevicePolicyManager =
+        getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+
+    private fun adminComponent(): ComponentName = ComponentName(this, MyDeviceAdminReceiver::class.java)
+
+    private fun isDeviceAdminActive(): Boolean = devicePolicyManager().isAdminActive(adminComponent())
+
+    private fun requestDeviceAdmin() {
+        val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+            putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent())
+            putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, getString(R.string.app_name))
+        }
+        startActivity(intent)
+    }
+
+    private fun lockPreferAdminAndFinish() {
+        if (isDeviceAdminActive()) {
+            devicePolicyManager().lockNow()
+            finishAndRemoveTask()
+        } else {
+            // Fallback to accessibility broadcast if available
+            val intent = Intent(ScreenLockAccessibilityService.ACTION_LOCK_SCREEN)
+            intent.setPackage(packageName)
+            sendBroadcast(intent)
+            finishAndRemoveTask()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -75,8 +104,9 @@ class MainActivity : ComponentActivity() {
                             isAccessibilityServiceEnabled(this@MainActivity, ScreenLockAccessibilityService::class.java)
                         )
                     }
+                    var isAdminActive by remember { mutableStateOf(isDeviceAdminActive()) }
 
-                    // Update the toggle when we return from settings (or app resumes)
+                    // Update the toggles when we return from settings (or app resumes)
                     DisposableEffect(lifecycleOwner) {
                         val observer = LifecycleEventObserver { _, event ->
                             if (event == Lifecycle.Event.ON_RESUME) {
@@ -84,6 +114,7 @@ class MainActivity : ComponentActivity() {
                                     this@MainActivity,
                                     ScreenLockAccessibilityService::class.java
                                 )
+                                isAdminActive = isDeviceAdminActive()
                             }
                         }
                         lifecycleOwner.lifecycle.addObserver(observer)
@@ -91,9 +122,12 @@ class MainActivity : ComponentActivity() {
                     }
 
                     MainScreen(
-                        isServiceEnabled = isServiceEnabled,
-                        onEnableService = { requestAccessibilityService(this@MainActivity) },
-                        onLockScreen = { sendLockRequestAndFinish() },
+                        isDeviceAdminActive = isAdminActive,
+                        isAccessibilityEnabled = isServiceEnabled,
+                        onEnableDeviceAdmin = { requestDeviceAdmin() },
+                        onEnableAccessibility = { requestAccessibilityService(this@MainActivity) },
+                        onOpenAppInfo = { openAppInfo() },
+                        onLock = { lockPreferAdminAndFinish() },
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -104,9 +138,12 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MainScreen(
-    isServiceEnabled: Boolean,
-    onEnableService: () -> Unit,
-    onLockScreen: () -> Unit,
+    isDeviceAdminActive: Boolean,
+    isAccessibilityEnabled: Boolean,
+    onEnableDeviceAdmin: () -> Unit,
+    onEnableAccessibility: () -> Unit,
+    onOpenAppInfo: () -> Unit,
+    onLock: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -114,14 +151,20 @@ fun MainScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (isServiceEnabled) {
-            Button(onClick = onLockScreen) {
-                Text("Lock Screen")
+        when {
+            isDeviceAdminActive || isAccessibilityEnabled -> {
+                Button(onClick = onLock) { Text("Lock Screen") }
+                if (!isDeviceAdminActive) {
+                    Text("Tip: Enable Device Admin for best compatibility")
+                    Button(onClick = onEnableDeviceAdmin) { Text("Enable Device Admin") }
+                }
             }
-        } else {
-            Text("Accessibility Service is not enabled.")
-            Button(onClick = onEnableService) {
-                Text("Enable Accessibility Service")
+            else -> {
+                Text("To lock the screen, enable one of the following:")
+                Button(onClick = onEnableDeviceAdmin) { Text("Enable Device Admin") }
+                Button(onClick = onEnableAccessibility) { Text("Enable Accessibility Service") }
+                Text("If Accessibility shows 'Restricted setting', open App Info and allow restricted settings.")
+                Button(onClick = onOpenAppInfo) { Text("Open App Info") }
             }
         }
     }
@@ -132,9 +175,12 @@ fun MainScreen(
 fun MainScreenPreview() {
     ScreenLockTheme {
         MainScreen(
-            isServiceEnabled = false,
-            onEnableService = {},
-            onLockScreen = {}
+            isDeviceAdminActive = false,
+            isAccessibilityEnabled = false,
+            onEnableDeviceAdmin = {},
+            onEnableAccessibility = {},
+            onOpenAppInfo = {},
+            onLock = {}
         )
     }
 }

@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import androidx.core.content.ContextCompat
 
 class ScreenLockAccessibilityService : AccessibilityService() {
     companion object {
@@ -26,12 +27,12 @@ class ScreenLockAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         val filter = IntentFilter(ACTION_LOCK_SCREEN)
         try {
-            if (android.os.Build.VERSION.SDK_INT >= 33) {
-                registerReceiver(lockReceiver, filter, RECEIVER_NOT_EXPORTED)
-            } else {
-                // Standard dynamic receiver registration for pre-33
-                registerReceiver(lockReceiver, filter)
-            }
+            ContextCompat.registerReceiver(
+                this,
+                lockReceiver,
+                filter,
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
         } catch (e: Exception) {
             Log.e("ScreenLockService", "Failed to register receiver", e)
         }
